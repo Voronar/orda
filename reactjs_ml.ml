@@ -18,6 +18,7 @@ module Utils = struct
   end
 end
 
+(* Element, Component *)
 type element
 
 type 'a component =
@@ -43,15 +44,14 @@ let create_element (component_or_tag) (props) (children: element list option) : 
 type 'a provider_props = < value: 'a Js.readonly_prop > Js.t
 type 'a context_provider = 'a provider_props -> element
 type 'a context_js
-type 'a context = {
-  provider: 'a context_provider
-}
 
 let create_context (dft_value: 'a): 'a context_js =
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.createContext") [| to_any_js dft_value|]
 
+let create_context_value v = object%js val value = v end
 let get_provider (ctx_js: 'a context_js): 'a context_provider = Js.Unsafe.get ctx_js "Provider"
 
+(* HTML building blocks *)
 module Html = struct
   module InlineStyle = struct
     type style =
@@ -62,11 +62,11 @@ module Html = struct
       | Color of string
 
     let props_to_attr = function
-      | Display d -> ("display", to_any_js d)
-      | Width w -> ("width", to_any_js w)
-      | Height h -> ("height", to_any_js h)
-      | BackgroundColor bc -> ("backgroundColor", to_any_js bc)
-      | Color c -> ("color", to_any_js c)
+      | Display s -> ("display", to_any_js s)
+      | Width s -> ("width", to_any_js s)
+      | Height s -> ("height", to_any_js s)
+      | BackgroundColor s -> ("backgroundColor", to_any_js s)
+      | Color s -> ("color", to_any_js s)
     let create_js_obj attrs = List.map props_to_attr attrs
       |> Array.of_list
       |> Js.Unsafe.obj
@@ -116,30 +116,31 @@ end
 
 (* Component utils *)
 let fc (fc: 'a -> element) (props: 'a) ch = create_element (FunctionalComponent fc) props (Some ch)
-let (</>) component props = fc component props
+let (<@>) component props = fc component props
+let (</@>) comp_props (ch: element list): element = comp_props ch
 let string str: element = Js.Unsafe.eval_string (Printf.sprintf {|"%s"|} str)
 let null (): element = Js.Unsafe.pure_js_expr "null"
 let get_children props: element list = Js.Unsafe.get props "children"
 
 (* Hooks *)
-let use_effect (fn: unit -> (unit -> unit) option Js.optdef): unit =
+let use_effect (fn: unit -> (unit -> unit) Js.optdef): unit =
   Js.Unsafe.fun_call
     (Js.Unsafe.js_expr "React.useEffect")
     [|to_any_js @@ Js.Unsafe.callback (fn)|]
 
-let use_effect0 (fn: unit -> (unit -> unit) option Js.optdef): unit =
+let use_effect0 (fn: unit -> (unit -> unit) Js.optdef): unit =
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect") [|
     to_any_js @@ Js.Unsafe.callback fn;
     to_any_js @@ Js.array [||]
   |]
 
-let use_effect1 (fn: unit -> (unit -> unit) option Js.optdef) dep1 : unit =
+let use_effect1 (fn: unit -> (unit -> unit) Js.optdef) dep1 : unit =
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect") [|
     to_any_js @@ Js.Unsafe.callback (fn);
     to_any_js @@ Js.array [|dep1|]
   |]
 
-let use_effect2 (fn: unit -> (unit -> unit) option Js.optdef) dep1 dep2 : unit =
+let use_effect2 (fn: unit -> (unit -> unit) Js.optdef) dep1 dep2 : unit =
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect") [|
     to_any_js @@ Js.Unsafe.callback fn;
     to_any_js @@ Js.array [|dep1, dep2|]
@@ -158,7 +159,7 @@ let use_context (ctx: 'a context_js): 'a =
 let memo (fn: 'a -> element): 'a -> element =
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.memo") [| to_any_js @@ Js.Unsafe.callback fn|]
 
-(* ReactDom module *)
+(* ReactDom *)
 module Dom = struct
   let render (element: element) (node: Dom_html.element Js.t ): Dom_html.element Js.t =
     Js.Unsafe.fun_call (Js.Unsafe.js_expr "ReactDOM.render") [|

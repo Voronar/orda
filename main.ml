@@ -1,4 +1,4 @@
-open! Js_of_ocaml
+open Js_of_ocaml
 module Html = Reactjs_ml.Html
 module Attr = Reactjs_ml.Html.Attr
 module Utils = Reactjs_ml.Utils
@@ -49,16 +49,20 @@ let app () = let open Reactjs_ml in
     { name = "go to gym"; _done = false };
     { name = "walk at forest"; _done = true }
   ]) in
-  let ctx_value = object%js
-    val value = {
-      value = cxt_value;
-      setValue = fun v -> set_ctx_value (fun _ -> v)
-    }
-  end in
+  let ctx_value = Reactjs_ml.create_context_value {
+    value = cxt_value;
+    setValue = fun v -> set_ctx_value (fun _ -> v)
+  } in
 
-  (ctx_provider </> ctx_value) [
+  Reactjs_ml.use_effect0 (fun _ -> (
+    Js.Optdef.return @@ fun () -> (
+      print_endline "buy";
+    )
+  ));
+
+  ctx_provider <@> ctx_value </@> [
     Html.div [] [
-      (memo_test </> { value = 22 }) [];
+      memo_test <@> { value = 22 } </@> [];
       Html.h1 [] [Reactjs_ml.string "My todos"];
       Html.input [ Attr.Value text; Attr.OnInput (fun e -> 
         let a = match (Utils.Event.keyboard_target e##.nativeEvent) with
@@ -67,10 +71,10 @@ let app () = let open Reactjs_ml in
         setText (fun _ -> a)
       )];
       Html.div [] [Reactjs_ml.string @@ "" ^ text];
-      (todo_list </> { data = todos }) []
+      todo_list <@> { data = todos } </@> []
     ]
   ]
 
 let _start = let open Reactjs_ml in
-  let el = (app </> ()) [] in
+  let el = app <@> () </@> [] in
   Reactjs_ml.Dom.render el (Dom_html.getElementById "root")
