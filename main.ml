@@ -1,8 +1,7 @@
 open Js_of_ocaml
-module Html = Reactjs_ml.Html
-module Attr = Reactjs_ml.Html.Attr
-module Utils = Reactjs_ml.Utils
-module Style = Reactjs_ml.Html.InlineStyle
+module Html = Reactjs.Html
+module Attr = Reactjs.Html.Attr
+module Style = Reactjs.Html.InlineStyle
 
 type todo = {
   name: string;
@@ -10,51 +9,68 @@ type todo = {
 }
 [@@deriving yojson]
 
-type todo_list_props = {
-  data: todo list
-}
 
 type ctx_type = {
   value: int;
   setValue: int -> unit;
 }
-let ctx = Reactjs_ml.create_context { value = 0; setValue = fun _ -> () }
-let ctx_provider = Reactjs_ml.get_provider ctx
+let ctx = Reactjs.create_context { value = 0; setValue = fun _ -> () }
+let ctx_provider = Reactjs.get_provider ctx
 
-let todo_list (props: todo_list_props) =
-  let cxt_value = Reactjs_ml.use_context ctx in
-  Utils.Global.console_log cxt_value.value;
+type todo_list_props = {
+  todos: todo list;
+  on_item_click: int -> unit
+}
+
+let todo_list (props: todo_list_props) = let open Reactjs in
+  (* let cxt_value = use_context ctx in *)
+  let mutable_ref = use_ref 1 in
+
+  use_effect0 (fun () -> (
+    print_endline "Mutate ref!";
+    Browser.Global.console_log !mutable_ref;
+    mutable_ref := 123;
+    Browser.Global.console_log !mutable_ref;
+    Js.Optdef.empty
+  ));
+
   Html.ul [] (List.mapi (fun i -> fun item -> 
     Html.li [
       Attr.Key (string_of_int i);
-      Attr.OnClick (fun _ -> cxt_value.setValue i);
+      Attr.OnClick (fun _ -> props.on_item_click i);
       Attr.style [
-        if item._done then Style.Color "green" else Style.Color "red"
+        if item._done then Style.TextDecoration "line-through" else Style.TextDecoration "none";
+        if item._done then Style.Color "grey" else Style.Color "black"
       ]
-    ] [Reactjs_ml.string item.name]
-  ) props.data)
+    ] [string item.name]
+  ) props.todos)
 
 type memo_test_props = {
-  value: int;
+  value: string;
 }
 
-let memo_test = Reactjs_ml.memo (fun (props: memo_test_props) ->
+let memo_test = let open Reactjs in memo (fun (props: memo_test_props) ->
   print_endline "memoized component test only one render";
-  Html.h1 [] [Reactjs_ml.string @@ "memo test value: " ^ string_of_int props.value])
+  Html.h1 [] [string @@ "memo test value: " ^ props.value])
 
-let app () = let open Reactjs_ml in
-  let (cxt_value, set_ctx_value) = Reactjs_ml.use_state (fun () -> 1) in
-  let (text, setText) = Reactjs_ml.use_state (fun () -> "") in
-  let (todos, _setTodos) = Reactjs_ml.use_state (fun () -> [
+let app () = let open Reactjs in
+  let (cxt_value, set_ctx_value) = use_state (fun () -> 1) in
+  let (text, setText) = use_state (fun () -> "") in
+  let (todos, setTodos) = use_state (fun () -> [
     { name = "go to gym"; _done = false };
-    { name = "walk at forest"; _done = true }
+    { name = "walk at forest"; _done = true };
+    { name = "go to js meetup"; _done = false }
   ]) in
-  let ctx_value = Reactjs_ml.create_context_value {
+  let ctx_value = create_context_value {
     value = cxt_value;
     setValue = fun v -> set_ctx_value (fun _ -> v)
   } in
 
-  Reactjs_ml.use_effect0 (fun _ -> (
+  let on_item_click idx = setTodos (fun tds -> List.mapi (fun i -> fun item -> (
+    if idx <> i then item else { item with _done = not item._done }
+  )) tds) in
+
+  use_effect0 (fun _ -> (
     Js.Optdef.return @@ fun () -> (
       print_endline "buy";
     )
@@ -62,19 +78,33 @@ let app () = let open Reactjs_ml in
 
   ctx_provider <@> ctx_value </@> [
     Html.div [] [
-      memo_test <@> { value = 22 } </@> [];
-      Html.h1 [] [Reactjs_ml.string "My todos"];
-      Html.input [ Attr.Value text; Attr.OnInput (fun e -> 
-        let a = match (Utils.Event.keyboard_target e##.nativeEvent) with
-          | Some s -> Js.to_string s##.value
-          | None -> "" in
-        setText (fun _ -> a)
-      )];
-      Html.div [] [Reactjs_ml.string @@ "" ^ text];
-      todo_list <@> { data = todos } </@> []
+      memo_test <@> { value = "const value" } </@> [];
+      Html.h1 [] [string "My todos"];
+      Html.input [
+        Attr.Value text;
+        Attr.OnKeyDown (fun e -> match Js.Optdef.to_option e##.nativeEvent##.code with
+          | Some s -> (match (Browser.Event.keyboard_target e##.nativeEvent) with
+            | Some t ->
+              let code = Js.to_string s
+              and value = Js.to_string t##.value in
+              if code = "Enter" && String.length value > 0
+              then (
+                setTodos (fun tds -> List.append tds [{ name = value; _done = false }]);
+                setText (fun _ -> ""))
+            | None -> ())
+          | None -> ()
+        );
+        Attr.OnInput (fun e -> 
+          let a = match (Browser.Event.keyboard_target e##.nativeEvent) with
+            | Some s -> Js.to_string s##.value
+            | None -> "" in
+          setText (fun _ -> a)
+        )
+      ];
+      todo_list <@> { todos; on_item_click } </@> []
     ]
   ]
 
-let _start = let open Reactjs_ml in
+let _start = let open Reactjs in
   let el = app <@> () </@> [] in
-  Reactjs_ml.Dom.render el (Dom_html.getElementById "root")
+  Dom.render el (Dom_html.getElementById "root")

@@ -1,22 +1,4 @@
 open Js_of_ocaml
-let to_any_js = Js.Unsafe.inject
-
-(* JavaScript specific utils *)
-module Utils = struct
-  module Global = struct
-    let console_log (s): unit = Js.Unsafe.fun_call (
-      Js.Unsafe.js_expr "console.log") [|to_any_js s|]
-
-    let setInterval fn d = Dom_html.window##setInterval (Js.Unsafe.callback fn) d
-    let setTimeout fn d = Dom_html.window##setTimeout (Js.Unsafe.callback fn) d
-  end
-  module Event = struct
-    let keyboard_target (e: Dom_html.keyboardEvent Js.t): Dom_html.inputElement Js.t option =
-      match (Js.Opt.to_option e##.target) with
-      | Some s -> Some (Js.Unsafe.coerce s)
-      | None -> None
-  end
-end
 
 (* Element, Component *)
 type element
@@ -27,18 +9,18 @@ type 'a component =
 
 let create_element (component_or_tag) (props) (children: element list option) : element =
   let comp = match component_or_tag with
-    | HtmlTagComponent s -> to_any_js @@ Js.string s
-    | FunctionalComponent fn -> to_any_js @@ Js.Unsafe.callback fn
+    | HtmlTagComponent s -> Js.Unsafe.inject @@ Js.string s
+    | FunctionalComponent fn -> Js.Unsafe.inject @@ Js.Unsafe.callback fn
   in
   let children_array = (match children with
     | Some c -> if List.length c = 0
-      then [to_any_js Js.Optdef.empty]
-      else List.map to_any_js c
-    | None -> [to_any_js Js.Optdef.empty])
+      then [Js.Unsafe.inject Js.Optdef.empty]
+      else List.map Js.Unsafe.inject c
+    | None -> [Js.Unsafe.inject Js.Optdef.empty])
   |> Array.of_list in
 
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.createElement") (
-    Array.append [|comp; to_any_js props|] children_array)
+    Array.append [|comp; Js.Unsafe.inject props|] children_array)
 
 (* Context *)
 type 'a provider_props = < value: 'a Js.readonly_prop > Js.t
@@ -46,10 +28,21 @@ type 'a context_provider = 'a provider_props -> element
 type 'a context_js
 
 let create_context (dft_value: 'a): 'a context_js =
-  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.createContext") [| to_any_js dft_value|]
+  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.createContext") [| Js.Unsafe.inject dft_value|]
 
 let create_context_value v = object%js val value = v end
 let get_provider (ctx_js: 'a context_js): 'a context_provider = Js.Unsafe.get ctx_js "Provider"
+
+let use_context (ctx: 'a context_js): 'a =
+  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useContext") [|Js.Unsafe.inject ctx|]
+
+(* functional component ONLY mutable refs *)
+type 'a ref_object = < current: 'a Js.prop > Js.t
+let (!) (ref: 'a ref_object): 'a = Js.Unsafe.get ref "current"
+let (:=) (ref: 'a ref_object) (v: 'a): unit = Js.Unsafe.set ref "current" v
+
+let use_ref (value: 'a): 'a ref_object =
+  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useRef") [|Js.Unsafe.inject value|]
 
 (* HTML building blocks *)
 module Html = struct
@@ -60,13 +53,15 @@ module Html = struct
       | Height of string
       | BackgroundColor of string
       | Color of string
+      | TextDecoration of string
 
     let props_to_attr = function
-      | Display s -> ("display", to_any_js s)
-      | Width s -> ("width", to_any_js s)
-      | Height s -> ("height", to_any_js s)
-      | BackgroundColor s -> ("backgroundColor", to_any_js s)
-      | Color s -> ("color", to_any_js s)
+      | Display s -> ("display", Js.Unsafe.inject s)
+      | Width s -> ("width", Js.Unsafe.inject s)
+      | Height s -> ("height", Js.Unsafe.inject s)
+      | BackgroundColor s -> ("backgroundColor", Js.Unsafe.inject s)
+      | Color s -> ("color", Js.Unsafe.inject s)
+      | TextDecoration s -> ("textDecoration", Js.Unsafe.inject s)
     let create_js_obj attrs = List.map props_to_attr attrs
       |> Array.of_list
       |> Js.Unsafe.obj
@@ -84,18 +79,22 @@ module Html = struct
     type attr =
       | OnClick of (mouse_event -> unit)
       | OnInput of (keyboard_event -> unit)
+      | OnKeyDown of (keyboard_event -> unit)
+      | OnKeyUp of (keyboard_event -> unit)
       | Key of string
       | Value of string
       | Style of Dom_html.cssStyleDeclaration Js.t
       | ClassName of string
 
     let props_to_attr = function
-      | OnClick fn -> ("onClick", to_any_js @@ Js.Unsafe.callback fn)
-      | OnInput fn -> ("onChange", to_any_js @@ Js.Unsafe.callback fn)
-      | Key k -> ("key", to_any_js @@ k)
-      | Style s -> ("style", to_any_js @@ s)
-      | Value v -> ("value", to_any_js @@ v)
-      | ClassName cn -> ("value", to_any_js @@ cn)
+      | OnClick fn -> ("onClick", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
+      | OnInput fn -> ("onChange", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
+      | OnKeyDown fn -> ("onKeyDown", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
+      | OnKeyUp fn -> ("onKeyUp", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
+      | Key k -> ("key", Js.Unsafe.inject @@ k)
+      | Style s -> ("style", Js.Unsafe.inject @@ s)
+      | Value v -> ("value", Js.Unsafe.inject @@ v)
+      | ClassName cn -> ("value", Js.Unsafe.inject @@ cn)
 
     let create_js_obj attrs = List.map props_to_attr attrs
       |> Array.of_list
@@ -126,44 +125,41 @@ let get_children props: element list = Js.Unsafe.get props "children"
 let use_effect (fn: unit -> (unit -> unit) Js.optdef): unit =
   Js.Unsafe.fun_call
     (Js.Unsafe.js_expr "React.useEffect")
-    [|to_any_js @@ Js.Unsafe.callback (fn)|]
+    [|Js.Unsafe.inject @@ Js.Unsafe.callback (fn)|]
 
 let use_effect0 (fn: unit -> (unit -> unit) Js.optdef): unit =
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect") [|
-    to_any_js @@ Js.Unsafe.callback fn;
-    to_any_js @@ Js.array [||]
+    Js.Unsafe.inject @@ Js.Unsafe.callback fn;
+    Js.Unsafe.inject @@ Js.array [||]
   |]
 
 let use_effect1 (fn: unit -> (unit -> unit) Js.optdef) dep1 : unit =
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect") [|
-    to_any_js @@ Js.Unsafe.callback (fn);
-    to_any_js @@ Js.array [|dep1|]
+    Js.Unsafe.inject @@ Js.Unsafe.callback (fn);
+    Js.Unsafe.inject @@ Js.array [|dep1|]
   |]
 
 let use_effect2 (fn: unit -> (unit -> unit) Js.optdef) dep1 dep2 : unit =
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect") [|
-    to_any_js @@ Js.Unsafe.callback fn;
-    to_any_js @@ Js.array [|dep1, dep2|]
+    Js.Unsafe.inject @@ Js.Unsafe.callback fn;
+    Js.Unsafe.inject @@ Js.array [|dep1, dep2|]
   |]
 
 let use_state (init_value: unit -> 'a): ('a * (('a -> 'a) -> unit)) =
   let state_tuple = Js.Unsafe.fun_call
     (Js.Unsafe.js_expr "React.useState")
-    [|to_any_js @@ Js.Unsafe.callback init_value|] in
+    [|Js.Unsafe.inject @@ Js.Unsafe.callback init_value|] in
   (Js.Unsafe.get state_tuple "0", Js.Unsafe.get state_tuple "1")
-
-let use_context (ctx: 'a context_js): 'a =
-  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useContext") [|to_any_js ctx|]
 
 (* Others *)
 let memo (fn: 'a -> element): 'a -> element =
-  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.memo") [| to_any_js @@ Js.Unsafe.callback fn|]
+  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.memo") [| Js.Unsafe.inject @@ Js.Unsafe.callback fn|]
 
 (* ReactDom *)
 module Dom = struct
   let render (element: element) (node: Dom_html.element Js.t ): Dom_html.element Js.t =
     Js.Unsafe.fun_call (Js.Unsafe.js_expr "ReactDOM.render") [|
-      to_any_js element;
-      to_any_js node
+      Js.Unsafe.inject element;
+      Js.Unsafe.inject node
     |]
 end
