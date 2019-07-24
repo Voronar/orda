@@ -2,25 +2,32 @@ open Js_of_ocaml
 
 (* Element, Component *)
 type element
+type fragment_component
+type class_component
 
 type 'a component =
   | HtmlTagComponent of string
+  | FragmentComponent of fragment_component
+  | ClassComponent of class_component
   | FunctionalComponent of ('a -> element)
 
-let create_element (component_or_tag) (props) (children: element list option) : element =
-  let comp = match component_or_tag with
+let parse_children ch = (match ch with
+  | Some c -> if List.length c = 0
+    then [Js.Unsafe.inject Js.Optdef.empty]
+    else List.map Js.Unsafe.inject c
+  | None -> [Js.Unsafe.inject Js.Optdef.empty])
+|> Array.of_list
+
+let create_element component props (children: element list option) : element =
+  let comp = match component with
     | HtmlTagComponent s -> Js.Unsafe.inject @@ Js.string s
+    | FragmentComponent frc -> Js.Unsafe.inject frc
+    | ClassComponent cc -> Js.Unsafe.inject cc
     | FunctionalComponent fn -> Js.Unsafe.inject @@ Js.Unsafe.callback fn
   in
-  let children_array = (match children with
-    | Some c -> if List.length c = 0
-      then [Js.Unsafe.inject Js.Optdef.empty]
-      else List.map Js.Unsafe.inject c
-    | None -> [Js.Unsafe.inject Js.Optdef.empty])
-  |> Array.of_list in
-
-  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.createElement") (
-    Array.append [|comp; Js.Unsafe.inject props|] children_array)
+  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.createElement") (Array.append
+    [|comp; Js.Unsafe.inject props|]
+    (parse_children children))
 
 (* Context *)
 type 'a provider_props = < value: 'a Js.readonly_prop > Js.t
@@ -76,12 +83,13 @@ module Html = struct
       nativeEvent: Dom_html.keyboardEvent Js.t Js.readonly_prop
     > Js.t
 
-    type attr =
+    type 'a attr =
       | OnClick of (mouse_event -> unit)
       | OnInput of (keyboard_event -> unit)
       | OnKeyDown of (keyboard_event -> unit)
       | OnKeyUp of (keyboard_event -> unit)
       | Key of string
+      | Ref of 'a Js.Opt.t ref_object
       | Value of string
       | Style of Dom_html.cssStyleDeclaration Js.t
       | ClassName of string
@@ -91,26 +99,38 @@ module Html = struct
       | OnInput fn -> ("onChange", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
       | OnKeyDown fn -> ("onKeyDown", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
       | OnKeyUp fn -> ("onKeyUp", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
-      | Key k -> ("key", Js.Unsafe.inject @@ k)
-      | Style s -> ("style", Js.Unsafe.inject @@ s)
+      | Key v -> ("key", Js.Unsafe.inject @@ v)
+      | Ref v -> ("ref", Js.Unsafe.inject @@ v)
+      | Style v -> ("style", Js.Unsafe.inject @@ v)
       | Value v -> ("value", Js.Unsafe.inject @@ v)
-      | ClassName cn -> ("value", Js.Unsafe.inject @@ cn)
+      | ClassName v -> ("className", Js.Unsafe.inject @@ v)
 
-    let create_js_obj attrs = List.map props_to_attr attrs
+    let create_js_obj props_to_attr_fn attrs = List.map props_to_attr_fn attrs
       |> Array.of_list
       |> Js.Unsafe.obj
+
+    let create_reg_attr attr = create_js_obj props_to_attr attr
     let style attr = Style (InlineStyle.create attr)
   end
-  let el_factory tag at ch = create_element (HtmlTagComponent tag) (Attr.create_js_obj at) (Some ch)
-  let div at ch = el_factory "div" at ch
-  let span at ch = el_factory "span" at ch
-  let ul at ch = el_factory "ul" at ch
-  let ol at ch = el_factory "ol" at ch
-  let li at ch = el_factory "li" at ch
-  let h1 at ch = el_factory "h1" at ch
-  let h2 at ch = el_factory "h2" at ch
-  let h3 at ch = el_factory "h3" at ch
-  let input at = create_element (HtmlTagComponent "input") (Attr.create_js_obj at) None
+  let html_factory tag at ch = create_element (HtmlTagComponent tag) (Attr.create_reg_attr at) (Some ch)
+  let div (at: Dom_html.divElement Attr.attr list) ch = html_factory "div" at ch
+  let span (at: Dom_html.htmlElement Attr.attr list) ch = html_factory "span" at ch
+  let ul (at: Dom_html.uListElement Attr.attr list) ch = html_factory "ul" at ch
+  let ol (at: Dom_html.oListElement Attr.attr list) ch = html_factory "ol" at ch
+  let li (at: Dom_html.liElement Attr.attr list) ch = html_factory "li" at ch
+  let table (at: Dom_html.tableElement Attr.attr list) ch = html_factory "table" at ch
+  let tbody (at: Dom_html.tableElement Attr.attr list) ch = html_factory "tbody" at ch
+  let thead (at: Dom_html.tableElement Attr.attr list) ch = html_factory "thead" at ch
+  let tr (at: Dom_html.tableRowElement Attr.attr list) ch = html_factory "tr" at ch
+  let th (at: Dom_html.tableCellElement Attr.attr list) ch = html_factory "th" at ch
+  let td (at: Dom_html.tableCellElement Attr.attr list) ch = html_factory "td" at ch
+  let h1 (at: Dom_html.headingElement Attr.attr list) ch = html_factory "h1" at ch
+  let h2 (at: Dom_html.headingElement Attr.attr list) ch = html_factory "h2" at ch
+  let h3 (at: Dom_html.headingElement Attr.attr list) ch = html_factory "h3" at ch
+  let select (at: Dom_html.selectElement Attr.attr list) ch = html_factory "select" at ch
+  let option (at: Dom_html.optionElement Attr.attr list) ch = html_factory "option" at ch
+  let input (at: Dom_html.inputElement Attr.attr list) = create_element (HtmlTagComponent "input") (Attr.create_reg_attr at) None
+  let textarea (at: Dom_html.textAreaElement Attr.attr list) = create_element (HtmlTagComponent "textarea") (Attr.create_reg_attr at) None
 end
 
 (* Component utils *)
@@ -121,11 +141,19 @@ let string str: element = Js.Unsafe.eval_string (Printf.sprintf {|"%s"|} str)
 let null (): element = Js.Unsafe.pure_js_expr "null"
 let get_children props: element list = Js.Unsafe.get props "children"
 
+let react_fragment: fragment_component = Js.Unsafe.js_expr "React.Fragment"
+let fragment ?key ch =
+  let props = match key with
+    | Some s ->  Js.Unsafe.inject @@ object%js val key = Js.string s end
+    | None -> Js.Unsafe.inject Js.Optdef.empty
+  in
+  create_element (FragmentComponent react_fragment) props (Some ch)
+
 (* Hooks *)
 let use_effect (fn: unit -> (unit -> unit) Js.optdef): unit =
   Js.Unsafe.fun_call
     (Js.Unsafe.js_expr "React.useEffect")
-    [|Js.Unsafe.inject @@ Js.Unsafe.callback (fn)|]
+    [|Js.Unsafe.inject @@ Js.Unsafe.callback fn|]
 
 let use_effect0 (fn: unit -> (unit -> unit) Js.optdef): unit =
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect") [|
@@ -163,3 +191,16 @@ module Dom = struct
       Js.Unsafe.inject node
     |]
 end
+
+(* error catching helper component *)
+let error_bound_component: class_component = Js.Unsafe.js_expr "ErrorBoundComponent"
+
+let error_bound
+  ?error_fallback:((error_fallback: element list) = [])
+  ?on_error:(on_error = fun () -> ())
+  ch =
+    let props = object%js
+      val errorFallback = Js.Unsafe.inject error_fallback
+      method onError = Js.Unsafe.callback on_error
+    end in
+    create_element (ClassComponent error_bound_component) props (Some ch)

@@ -1,12 +1,16 @@
-# Frontend React library bindings for OCaml via `js_of_ocaml`
+# Make front-end development great with OCaml!
 
 ## TODO
-- better building process
+- state managment solution (hooks or redux)
+- routing solution
+- css in js(ocaml)
 
 ## Building
 ```sh
-dune build {main.bc.js,index.html}
+  make js-deps
+  make js-build
+  make
 ```
 
 ## Running
-Open `_build/default/index.html` in browser
+Open `_build/default/index.html` in your favorite browser

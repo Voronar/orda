@@ -1,4 +1,4 @@
-open Js_of_ocaml
+open! Js_of_ocaml
 module Html = Reactjs.Html
 module Attr = Reactjs.Html.Attr
 module Style = Reactjs.Html.InlineStyle
@@ -51,9 +51,13 @@ type memo_test_props = {
 
 let memo_test = let open Reactjs in memo (fun (props: memo_test_props) ->
   print_endline "memoized component test only one render";
-  Html.h1 [] [string @@ "memo test value: " ^ props.value])
+  Reactjs.fragment ~key:"asd" [
+    Html.div [] [string "wrapperd with fragment"];
+    Html.div [] [string @@ "memo test value: " ^ props.value];
+  ])
 
 let app () = let open Reactjs in
+  let dom_node = use_ref Js.Opt.empty in
   let (cxt_value, set_ctx_value) = use_state (fun () -> 1) in
   let (text, setText) = use_state (fun () -> "") in
   let (todos, setTodos) = use_state (fun () -> [
@@ -70,41 +74,65 @@ let app () = let open Reactjs in
     if idx <> i then item else { item with _done = not item._done }
   )) tds) in
 
+  (match Js.Opt.to_option !dom_node with
+    | Some s -> Browser.Global.console_log s
+    | None -> Browser.Global.console_log @@ !dom_node);
+
   use_effect0 (fun _ -> (
+
     Js.Optdef.return @@ fun () -> (
       print_endline "buy";
     )
   ));
 
-  ctx_provider <@> ctx_value </@> [
-    Html.div [] [
-      memo_test <@> { value = "const value" } </@> [];
-      Html.h1 [] [string "My todos"];
-      Html.input [
-        Attr.Value text;
-        Attr.OnKeyDown (fun e -> match Js.Optdef.to_option e##.nativeEvent##.code with
-          | Some s -> (match (Browser.Event.keyboard_target e##.nativeEvent) with
-            | Some t ->
-              let code = Js.to_string s
-              and value = Js.to_string t##.value in
-              if code = "Enter" && String.length value > 0
-              then (
-                setTodos (fun tds -> List.append tds [{ name = value; _done = false }]);
-                setText (fun _ -> ""))
-            | None -> ())
-          | None -> ()
-        );
-        Attr.OnInput (fun e -> 
-          let a = match (Browser.Event.keyboard_target e##.nativeEvent) with
-            | Some s -> Js.to_string s##.value
-            | None -> "" in
-          setText (fun _ -> a)
-        )
-      ];
-      todo_list <@> { todos; on_item_click } </@> []
+  error_bound [
+    ctx_provider <@> ctx_value </@> [
+      Html.div [] [
+        memo_test <@> { value = "const value" } </@> [];
+        Html.h1 [Attr.Ref dom_node] [string "My todos"];
+        Html.input [
+          Attr.Value text;
+          Attr.OnKeyDown (fun e -> match Js.Optdef.to_option e##.nativeEvent##.code with
+            | Some s -> (match (Browser.Event.keyboard_target e##.nativeEvent) with
+              | Some t ->
+                let code = Js.to_string s
+                and value = Js.to_string t##.value in
+                if code = "Enter" && String.length value > 0
+                then (
+                  setTodos (fun tds -> List.append tds [{ name = value; _done = false }]);
+                  setText (fun _ -> ""))
+              | None -> ())
+            | None -> ()
+          );
+          Attr.OnInput (fun e -> 
+            let a = match (Browser.Event.keyboard_target e##.nativeEvent) with
+              | Some s -> Js.to_string s##.value
+              | None -> "" in
+            setText (fun _ -> a)
+          )
+        ];
+        todo_list <@> { todos; on_item_click } </@> []
+      ]
     ]
   ]
 
 let _start = let open Reactjs in
   let el = app <@> () </@> [] in
   Dom.render el (Dom_html.getElementById "root")
+
+let url = "https://jsonplaceholder.typicode.com/todos"
+
+let _main =
+  let _r = Lwt.try_bind (
+    fun _ -> Js_of_ocaml_lwt.XmlHttpRequest.perform_raw_url url) (fun v ->
+    print_endline "ok";
+    print_endline @@ string_of_int v.code;
+    print_endline @@ v.content;
+
+    (match v.headers "Origin" with
+      | Some s -> print_endline ("origin: " ^ s)
+      | None -> print_endline "no headers");
+
+    Lwt.return_unit
+  ) (fun ex -> print_endline "wrong"; Browser.Global.console_log ex; Lwt.return_unit) in
+  ()

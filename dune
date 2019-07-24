@@ -1,4 +1,8 @@
 (executable
- (name main)
- (libraries js_of_ocaml yojson)
- (preprocess (pps ppx_deriving_yojson js_of_ocaml-ppx)))
+  (name main)
+  (libraries js_of_ocaml js_of_ocaml-lwt yojson)
+  (preprocess (pps ppx_deriving_yojson js_of_ocaml-ppx)))
+
+(alias
+  (name default)
+  (deps main.bc.js index.html (glob_files js/dist/client-deps.js)))
