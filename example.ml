@@ -1,9 +1,9 @@
 open! Js_of_ocaml
-module Html = Jsoo_react.Html
-module Attr = Jsoo_react.Html.Attr
-module Style = Jsoo_react.Html.InlineStyle
+module Html = Orda.React.Html
+module Attr = Orda.React.Html.Attr
+module Style = Orda.React.Html.InlineStyle
 
-let console_log = Jsoo_browser.Global.console_log
+let console_log = Orda.Browser.Global.console_log
 
 type todo = {
   name: string;
@@ -11,20 +11,19 @@ type todo = {
 }
 [@@deriving yojson]
 
-
 type ctx_type = {
   value: int;
   setValue: int -> unit;
 }
-let ctx = Jsoo_react.create_context { value = 0; setValue = fun _ -> () }
-let ctx_provider = Jsoo_react.get_provider ctx
+let ctx = Orda.React.create_context { value = 0; setValue = fun _ -> () }
+let ctx_provider = Orda.React.get_provider ctx
 
 type todo_list_props = {
   todos: todo list;
   on_item_click: int -> unit
 }
 
-let todo_list (props: todo_list_props) = let open Jsoo_react in
+let todo_list (props: todo_list_props) = let open Orda.React in
   (* let cxt_value = use_context ctx in *)
   let mutable_ref = use_ref 1 in
 
@@ -51,14 +50,14 @@ type memo_test_props = {
   value: string;
 }
 
-let memo_test = let open Jsoo_react in memo (fun (props: memo_test_props) ->
+let memo_test = let open Orda.React in memo (fun (props: memo_test_props) ->
   print_endline "memoized component test only one render";
-  Jsoo_react.fragment ~key:"asd" [
+  Orda.React.fragment ~key:"asd" [
     Html.div [] [string "wrapperd with fragment"];
     Html.div [] [string @@ "memo test value: " ^ props.value];
   ])
 
-let app () = let open Jsoo_react in
+let app () = let open Orda.React in
   let dom_node = use_ref Js.Opt.empty in
   let (cxt_value, set_ctx_value) = use_state (fun () -> 1) in
   let (text, setText) = use_state (fun () -> "") in
@@ -95,7 +94,7 @@ let app () = let open Jsoo_react in
         Html.input [
           Attr.Value text;
           Attr.OnKeyDown (fun e -> match Js.Optdef.to_option e##.nativeEvent##.code with
-            | Some s -> (match (Jsoo_browser.Event.keyboard_target e##.nativeEvent) with
+            | Some s -> (match (Orda.Browser.Event.keyboard_target e##.nativeEvent) with
               | Some t ->
                 let code = Js.to_string s
                 and value = Js.to_string t##.value in
@@ -107,7 +106,7 @@ let app () = let open Jsoo_react in
             | None -> ()
           );
           Attr.OnInput (fun e -> 
-            let a = match (Jsoo_browser.Event.keyboard_target e##.nativeEvent) with
+            let a = match (Orda.Browser.Event.keyboard_target e##.nativeEvent) with
               | Some s -> Js.to_string s##.value
               | None -> "" in
             setText (fun _ -> a)
@@ -118,7 +117,7 @@ let app () = let open Jsoo_react in
     ]
   ]
 
-let _start = let open Jsoo_react in
+let _start = let open Orda.React in
   let el = app <@> () </@> [] in
   Dom.render el (Dom_html.getElementById "root")
 

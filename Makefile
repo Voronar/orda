@@ -1,5 +1,5 @@
 build:
-	dune build @default
+	dune build @example
 
 js-deps:
 	./js-deps.sh

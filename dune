@@ -1,8 +1,16 @@
-(executable
-  (name main)
-  (libraries js_of_ocaml js_of_ocaml-lwt yojson)
-  (preprocess (pps ppx_deriving_yojson js_of_ocaml-ppx)))
+(library
+  (name orda)
+  (modules react browser promise fetch)
+  (libraries js_of_ocaml)
+  (preprocess (pps js_of_ocaml-ppx)))
 
-(alias
-  (name default)
-  (deps main.bc.js index.html (glob_files js/dist/jsoo-react.js)))
+; Example todo app
+; (executable
+;   (name example)
+;   (modules example)
+;   (libraries js_of_ocaml js_of_ocaml-lwt yojson orda)
+;   (preprocess (pps ppx_deriving_yojson js_of_ocaml-ppx)))
+
+; (alias
+;   (name example)
+;   (deps example.bc.js index.html (glob_files js/dist/orda.js)))

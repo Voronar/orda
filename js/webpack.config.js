@@ -7,7 +7,7 @@ module.exports = {
   entry: './main.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'jsoo-react.js'
+    filename: 'orda.js'
   },
   module: {
     rules: [

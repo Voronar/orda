@@ -150,46 +150,53 @@ let fragment ?key ch =
   create_element (FragmentComponent react_fragment) props (Some ch)
 
 (* Hooks *)
-let use_effect (fn: unit -> (unit -> unit) Js.optdef): unit =
-  Js.Unsafe.fun_call
-    (Js.Unsafe.js_expr "React.useEffect")
-    [|Js.Unsafe.inject @@ Js.Unsafe.callback fn|]
+let use_effect (fn: unit -> (unit -> unit) Js.optdef): unit = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect")
+  [|Js.Unsafe.inject @@ Js.Unsafe.callback fn|]
 
-let use_effect0 (fn: unit -> (unit -> unit) Js.optdef): unit =
-  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect") [|
-    Js.Unsafe.inject @@ Js.Unsafe.callback fn;
-    Js.Unsafe.inject @@ Js.array [||]
-  |]
+let use_effect0 (fn: unit -> (unit -> unit) Js.optdef): unit = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect")
+  [|Js.Unsafe.inject @@ Js.Unsafe.callback fn;
+    Js.Unsafe.inject @@ Js.array [||]|]
 
-let use_effect1 (fn: unit -> (unit -> unit) Js.optdef) dep1 : unit =
-  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect") [|
-    Js.Unsafe.inject @@ Js.Unsafe.callback (fn);
-    Js.Unsafe.inject @@ Js.array [|dep1|]
-  |]
+let use_effect1 (fn: unit -> (unit -> unit) Js.optdef) d1 : unit = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect")
+  [|Js.Unsafe.inject @@ Js.Unsafe.callback (fn); Js.Unsafe.inject @@ Js.array [|d1|]|]
 
-let use_effect2 (fn: unit -> (unit -> unit) Js.optdef) dep1 dep2 : unit =
-  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect") [|
-    Js.Unsafe.inject @@ Js.Unsafe.callback fn;
-    Js.Unsafe.inject @@ Js.array [|dep1, dep2|]
-  |]
+let use_effect2 (fn: unit -> (unit -> unit) Js.optdef) ((d1, d2): ('a * 'b)) : unit = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect")
+  [|Js.Unsafe.inject @@ Js.Unsafe.callback fn;
+    Js.Unsafe.inject @@ Js.array [|Js.Unsafe.inject d1; Js.Unsafe.inject d2|]|]
+
+let use_effect3 (fn: unit -> (unit -> unit) Js.optdef) ((d1, d2, d3): ('a * 'b * 'c)) : unit = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useEffect")
+  [|Js.Unsafe.inject @@ Js.Unsafe.callback fn;
+    Js.Unsafe.inject @@ Js.array [|Js.Unsafe.inject d1; Js.Unsafe.inject d2; Js.Unsafe.inject d3|]|]
 
 let use_state (init_value: unit -> 'a): ('a * (('a -> 'a) -> unit)) =
-  let state_tuple = Js.Unsafe.fun_call
-    (Js.Unsafe.js_expr "React.useState")
+  let state_tuple = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useState")
     [|Js.Unsafe.inject @@ Js.Unsafe.callback init_value|] in
   (Js.Unsafe.get state_tuple "0", Js.Unsafe.get state_tuple "1")
 
+let use_callback0 (fn: 'a -> 'b): 'a -> 'b = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useCallback")
+  [|Js.Unsafe.inject @@ Js.Unsafe.callback fn; Js.Unsafe.inject @@ Js.array [||]|]
+
+let use_callback1 (fn: 'a -> 'b) (d1: 'c): 'a -> 'b = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useCallback")
+  [|Js.Unsafe.inject @@ Js.Unsafe.callback fn; Js.Unsafe.inject @@ Js.array [|d1|]|]
+
+let use_callback2 (fn: 'a -> 'b) ((d1, d2): ('c * 'd)): 'a -> 'b = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useCallback")
+  [|Js.Unsafe.inject @@ Js.Unsafe.callback fn;
+    Js.Unsafe.inject @@ Js.array [|Js.Unsafe.inject d1; Js.Unsafe.inject d2|]|]
+
+let use_callback3 (fn: 'a -> 'b) ((d1, d2, d3): ('c * 'd * 'e)): 'a -> 'b = Js.Unsafe.fun_call
+  (Js.Unsafe.js_expr "React.useCallback") [|Js.Unsafe.inject @@ Js.Unsafe.callback fn;
+    Js.Unsafe.inject @@ Js.array [|Js.Unsafe.inject d1; Js.Unsafe.inject d2; Js.Unsafe.inject d3|]|]
+
 (* Others *)
 let memo (fn: 'a -> element): 'a -> element =
-  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.memo") [| Js.Unsafe.inject @@ Js.Unsafe.callback fn|]
+  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.memo") [|Js.Unsafe.inject @@ Js.Unsafe.callback fn|]
 
 (* ReactDom *)
 module Dom = struct
   let render (element: element) (node: Dom_html.element Js.t ): Dom_html.element Js.t =
-    Js.Unsafe.fun_call (Js.Unsafe.js_expr "ReactDOM.render") [|
-      Js.Unsafe.inject element;
-      Js.Unsafe.inject node
-    |]
+    Js.Unsafe.fun_call (Js.Unsafe.js_expr "ReactDOM.render")
+    [|Js.Unsafe.inject element;
+      Js.Unsafe.inject node|]
 end
 
 (* error catching helper component *)

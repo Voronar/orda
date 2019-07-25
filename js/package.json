@@ -1,5 +1,5 @@
 {
-  "name": "jsoo-react",
+  "name": "orda",
   "version": "0.1.0",
   "description": "js_of_ocaml ReactJS bindings",
   "main": "main.js",
@@ -14,6 +14,7 @@
   "author": "OCaml community",
   "license": "MIT",
   "dependencies": {
+    "whatwg-fetch": "^3.0.0",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
   },
