@@ -5,4 +5,4 @@
 
 (alias
   (name default)
-  (deps main.bc.js index.html (glob_files js/dist/client-deps.js)))
+  (deps main.bc.js index.html (glob_files js/dist/jsoo-react.js)))

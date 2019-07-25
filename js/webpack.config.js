@@ -7,7 +7,7 @@ module.exports = {
   entry: './main.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'client-deps.js'
+    filename: 'jsoo-react.js'
   },
   module: {
     rules: [
@@ -22,7 +22,7 @@ module.exports = {
   },
   resolve: {
     modules: ['node_modules'],
-    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'], // Automatically resolve certain extensions
+    extensions: ['.js', '.jsx'], // Automatically resolve certain extensions
     enforceExtension: false, // If true, it will not allow extension-less files
   },
 };

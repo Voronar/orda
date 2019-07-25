@@ -1,8 +1,12 @@
-# Make front-end development great with OCaml!
+# js_of_ocaml ReactJS bindings
+
+## Features
+- only functional components with hooks
+- standalone approach to write components only from scratch (because of tedious interoperability with JavaScript objects from third party components)
 
 ## TODO
 - state managment solution (hooks or redux)
-- routing solution
+- url routing solution
 - css in js(ocaml)
 
 ## Building

@@ -1,7 +1,9 @@
 open! Js_of_ocaml
-module Html = Reactjs.Html
-module Attr = Reactjs.Html.Attr
-module Style = Reactjs.Html.InlineStyle
+module Html = Jsoo_react.Html
+module Attr = Jsoo_react.Html.Attr
+module Style = Jsoo_react.Html.InlineStyle
+
+let console_log = Jsoo_browser.Global.console_log
 
 type todo = {
   name: string;
@@ -14,23 +16,23 @@ type ctx_type = {
   value: int;
   setValue: int -> unit;
 }
-let ctx = Reactjs.create_context { value = 0; setValue = fun _ -> () }
-let ctx_provider = Reactjs.get_provider ctx
+let ctx = Jsoo_react.create_context { value = 0; setValue = fun _ -> () }
+let ctx_provider = Jsoo_react.get_provider ctx
 
 type todo_list_props = {
   todos: todo list;
   on_item_click: int -> unit
 }
 
-let todo_list (props: todo_list_props) = let open Reactjs in
+let todo_list (props: todo_list_props) = let open Jsoo_react in
   (* let cxt_value = use_context ctx in *)
   let mutable_ref = use_ref 1 in
 
   use_effect0 (fun () -> (
     print_endline "Mutate ref!";
-    Browser.Global.console_log !mutable_ref;
+    console_log !mutable_ref;
     mutable_ref := 123;
-    Browser.Global.console_log !mutable_ref;
+    console_log !mutable_ref;
     Js.Optdef.empty
   ));
 
@@ -49,14 +51,14 @@ type memo_test_props = {
   value: string;
 }
 
-let memo_test = let open Reactjs in memo (fun (props: memo_test_props) ->
+let memo_test = let open Jsoo_react in memo (fun (props: memo_test_props) ->
   print_endline "memoized component test only one render";
-  Reactjs.fragment ~key:"asd" [
+  Jsoo_react.fragment ~key:"asd" [
     Html.div [] [string "wrapperd with fragment"];
     Html.div [] [string @@ "memo test value: " ^ props.value];
   ])
 
-let app () = let open Reactjs in
+let app () = let open Jsoo_react in
   let dom_node = use_ref Js.Opt.empty in
   let (cxt_value, set_ctx_value) = use_state (fun () -> 1) in
   let (text, setText) = use_state (fun () -> "") in
@@ -75,8 +77,8 @@ let app () = let open Reactjs in
   )) tds) in
 
   (match Js.Opt.to_option !dom_node with
-    | Some s -> Browser.Global.console_log s
-    | None -> Browser.Global.console_log @@ !dom_node);
+    | Some s -> console_log s
+    | None -> console_log @@ !dom_node);
 
   use_effect0 (fun _ -> (
 
@@ -93,7 +95,7 @@ let app () = let open Reactjs in
         Html.input [
           Attr.Value text;
           Attr.OnKeyDown (fun e -> match Js.Optdef.to_option e##.nativeEvent##.code with
-            | Some s -> (match (Browser.Event.keyboard_target e##.nativeEvent) with
+            | Some s -> (match (Jsoo_browser.Event.keyboard_target e##.nativeEvent) with
               | Some t ->
                 let code = Js.to_string s
                 and value = Js.to_string t##.value in
@@ -105,7 +107,7 @@ let app () = let open Reactjs in
             | None -> ()
           );
           Attr.OnInput (fun e -> 
-            let a = match (Browser.Event.keyboard_target e##.nativeEvent) with
+            let a = match (Jsoo_browser.Event.keyboard_target e##.nativeEvent) with
               | Some s -> Js.to_string s##.value
               | None -> "" in
             setText (fun _ -> a)
@@ -116,7 +118,7 @@ let app () = let open Reactjs in
     ]
   ]
 
-let _start = let open Reactjs in
+let _start = let open Jsoo_react in
   let el = app <@> () </@> [] in
   Dom.render el (Dom_html.getElementById "root")
 
@@ -134,5 +136,5 @@ let _main =
       | None -> print_endline "no headers");
 
     Lwt.return_unit
-  ) (fun ex -> print_endline "wrong"; Browser.Global.console_log ex; Lwt.return_unit) in
+  ) (fun ex -> print_endline "wrong"; console_log ex; Lwt.return_unit) in
   ()

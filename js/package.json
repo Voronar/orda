@@ -1,17 +1,17 @@
 {
-  "name": "webjs_of_ocaml",
+  "name": "jsoo-react",
   "version": "0.1.0",
-  "description": "Make web great again with OCaml",
+  "description": "js_of_ocaml ReactJS bindings",
   "main": "main.js",
   "scripts": {
     "dev": "webpack --colors --config webpack.config.js"
   },
   "keywords": [
-    "web",
-    "ocaml",
-    "js"
+    "react",
+    "js",
+    "ocaml"
   ],
-  "author": "",
+  "author": "OCaml community",
   "license": "MIT",
   "dependencies": {
     "react": "^16.8.6",
