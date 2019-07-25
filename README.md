@@ -1,4 +1,4 @@
-# **O**rdinary **R**eactJS **D**evelopment **A**pproach (powered by js_of_ocaml)
+**O**rdinary **R**eactJS **D**evelopment **A**pproach (powered by `js_of_ocaml`)
 
 ## Features
 - only functional components with hooks

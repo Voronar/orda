@@ -77,14 +77,17 @@ module Html = struct
 
   module Attr = struct
     type mouse_event = <
-      nativeEvent: Dom_html.mouseEvent Js.t Js.readonly_prop
+      nativeEvent: Dom_html.mouseEvent Js.t Js.readonly_prop;
+      preventDefault: unit -> unit Js.meth
     > Js.t
     type keyboard_event = <
-      nativeEvent: Dom_html.keyboardEvent Js.t Js.readonly_prop
+      nativeEvent: Dom_html.keyboardEvent Js.t Js.readonly_prop;
+      preventDefault: unit Js.meth
     > Js.t
 
     type 'a attr =
       | OnClick of (mouse_event -> unit)
+      | OnContextMenu of (mouse_event -> unit)
       | OnInput of (keyboard_event -> unit)
       | OnKeyDown of (keyboard_event -> unit)
       | OnKeyUp of (keyboard_event -> unit)
@@ -96,6 +99,7 @@ module Html = struct
 
     let props_to_attr = function
       | OnClick fn -> ("onClick", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
+      | OnContextMenu fn -> ("onContextMenu", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
       | OnInput fn -> ("onChange", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
       | OnKeyDown fn -> ("onKeyDown", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
       | OnKeyUp fn -> ("onKeyUp", Js.Unsafe.inject @@ Js.Unsafe.callback fn)
@@ -171,6 +175,17 @@ let use_effect3 (fn: unit -> (unit -> unit) Js.optdef) ((d1, d2, d3): ('a * 'b *
 let use_state (init_value: unit -> 'a): ('a * (('a -> 'a) -> unit)) =
   let state_tuple = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useState")
     [|Js.Unsafe.inject @@ Js.Unsafe.callback init_value|] in
+  (Js.Unsafe.get state_tuple "0", Js.Unsafe.get state_tuple "1")
+
+let use_reducer
+  ?init:(init = fun (x: 'a) -> x)
+  (reducer: 'a -> 'b -> 'a)
+  (init_value: 'a)
+:('a * ('b -> unit)) =
+  let state_tuple = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useReducer")
+    [|Js.Unsafe.inject @@ Js.Unsafe.callback reducer;
+      Js.Unsafe.inject @@ Js.Unsafe.inject init_value;
+      Js.Unsafe.inject @@ Js.Unsafe.callback init|] in
   (Js.Unsafe.get state_tuple "0", Js.Unsafe.get state_tuple "1")
 
 let use_callback0 (fn: 'a -> 'b): 'a -> 'b = Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.useCallback")

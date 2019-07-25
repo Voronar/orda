@@ -1,10 +1,10 @@
 open Js_of_ocaml
 
 type ('json_value, 'json_error, 'text_error, 'blob_error) response = <
-  json: ('json_value, 'json_error) Promise.t Js.meth;
-  text: (string, 'text_error) Promise.t Js.meth;
-  formData: (Form.formData, 'json_error) Promise.t Js.meth;
-  blob: (File.blob, 'blob_error) Promise.t Js.meth;
+  json: unit -> ('json_value, 'json_error) Promise.t Js.meth;
+  text: unit -> (string, 'text_error) Promise.t Js.meth;
+  formData: unit -> (Form.formData, 'json_error) Promise.t Js.meth;
+  blob: unit -> (File.blob, 'blob_error) Promise.t Js.meth;
   status: int Js.readonly_prop
 > Js.t
 
