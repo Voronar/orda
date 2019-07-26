@@ -5,13 +5,18 @@ type element
 type fragment_component
 type class_component
 
+module type ComponentSignature = sig
+  type t
+  val make: t -> element
+end
+
 type 'a component =
   | HtmlTagComponent of string
   | FragmentComponent of fragment_component
   | ClassComponent of class_component
   | FunctionalComponent of ('a -> element)
 
-let parse_children ch = (match ch with
+let parse_children (ch: element list option) = (match ch with
   | Some c -> if List.length c = 0
     then [Js.Unsafe.inject Js.Optdef.empty]
     else List.map Js.Unsafe.inject c
@@ -25,9 +30,9 @@ let create_element component props (children: element list option) : element =
     | ClassComponent cc -> Js.Unsafe.inject cc
     | FunctionalComponent fn -> Js.Unsafe.inject @@ Js.Unsafe.callback fn
   in
-  Js.Unsafe.fun_call (Js.Unsafe.js_expr "React.createElement") (Array.append
-    [|comp; Js.Unsafe.inject props|]
-    (parse_children children))
+  Js.Unsafe.fun_call
+    (Js.Unsafe.js_expr "React.createElement")
+    (Array.append [|comp; Js.Unsafe.inject props|] (parse_children children))
 
 (* Context *)
 type 'a provider_props = < value: 'a Js.readonly_prop > Js.t
@@ -138,12 +143,18 @@ module Html = struct
 end
 
 (* Component utils *)
-let fc (fc: 'a -> element) (props: 'a) ch = create_element (FunctionalComponent fc) props (Some ch)
+let get_children props: element = Js.Unsafe.get props "children"
+
+let fc
+  (type a)
+  (module ReactComponent: ComponentSignature with type t = a)
+  (props: a) ch
+= create_element (FunctionalComponent ReactComponent.make) props (Some ch)
+
 let (<@>) component props = fc component props
 let (</@>) comp_props (ch: element list): element = comp_props ch
 let string str: element = Js.Unsafe.eval_string (Printf.sprintf {|"%s"|} str)
 let null (): element = Js.Unsafe.pure_js_expr "null"
-let get_children props: element list = Js.Unsafe.get props "children"
 
 let react_fragment: fragment_component = Js.Unsafe.js_expr "React.Fragment"
 let fragment ?key ch =

@@ -2,10 +2,10 @@ build:
 	dune build @example
 
 js-deps:
-	./js-deps.sh
+	npm i --prefix js
 
 js-build:
-	./js-build.sh
+	npm run --prefix js build
 
 clean:
 	rm -r _build
